@@ -7,7 +7,7 @@ class WeightL {
   final double weight;
   final String source;
 
-  WeightL({this.id, this.createdDate, this.weight,this.source});
+  WeightL({this.id, this.createdDate, this.weight, this.source});
   Map<String, dynamic> toMap() {
     return {
       "id": this.id,
@@ -39,11 +39,36 @@ class WeightL {
     );
   }
 
-  Future<List<WeightL>> list() async {
+  Future<dynamic> count() async {
+    final Database db = await DBModel().db();
+    final List<Map<String, dynamic>> maps =
+        await db.rawQuery("select count(1) from wl_log");
+    return maps[0].values.first;
+  }
+
+  Future<List<WeightL>> list({int limit = 10, int page = 1}) async {
+    var offset = (page - 1) * limit;
     // Get a reference to the database (获得数据库引用)
     final Database db =
         await DBModel().db(); // Remove the Dog from the database (将狗狗从数据库移除)
-    final List<Map<String, dynamic>> maps = await db.query('wl_log');
+    final List<Map<String, dynamic>> maps = await db.query('wl_log',
+        orderBy: "createdDate desc", limit: limit, offset: offset);
+    return List.generate(maps.length, (i) {
+      return WeightL(
+        id: maps[i]['id'],
+        weight: maps[i]['weight'],
+        createdDate: maps[i]['createdDate'],
+        source: maps[i]['source'],
+      );
+    });
+  }
+
+  Future<List<WeightL>> listAll() async {
+    // Get a reference to the database (获得数据库引用)
+    final Database db =
+        await DBModel().db(); // Remove the Dog from the database (将狗狗从数据库移除)
+    final List<Map<String, dynamic>> maps =
+        await db.query('wl_log', orderBy: "createdDate");
     return List.generate(maps.length, (i) {
       return WeightL(
         id: maps[i]['id'],

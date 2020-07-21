@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:scales/card/card.dart';
 import 'package:scales/model/weight_log.dart';
 import 'package:scales/util/dateutil.dart';
@@ -11,63 +12,107 @@ class WeightLog extends StatefulWidget {
 }
 
 class _WeightLogState extends State<WeightLog> {
-  Future<List<WeightL>> wList;
+  List<WeightL> data = List<WeightL>();
+  ScrollController _scrollController;
+  GlobalKey<RefreshIndicatorState> _refreshIndicatorKey;
+  int page;
+  int pageSize;
+  var flag = true;
+
   @override
   void initState() {
     super.initState();
-    wList = WeightL().list();
+    page = 1;
+    pageSize = 50;
+    _scrollController = new ScrollController();
+    _refreshIndicatorKey = new GlobalKey<RefreshIndicatorState>();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _refreshIndicatorKey.currentState?.show();
+    });
+    this._onRefresh();
+
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels ==
+          _scrollController.position.maxScrollExtent) {
+        _onLoadmore();
+      }
+    });
+  }
+
+  Future<dynamic> _onRefresh() {
+    data.clear();
+    this.page = 1;
+    return WeightL().list(limit: pageSize, page: page).then((value) {
+      setState(() {
+        this.data.addAll(value);
+      });
+    }).then((_) => {
+          WeightL().count().then((value) {
+            if (value < pageSize) {
+              setState(() {
+                flag = false;
+              });
+            }
+          })
+        });
+  }
+
+  Future<dynamic> _onLoadmore() {
+    this.page++;
+    return WeightL().list(limit: pageSize, page: page).then((data) {
+      setState(() {
+        if (data.length == 0) {
+          flag = false;
+        }
+        this.data.addAll(data);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Widget _loadMoreWidget() {
+    return Visibility(
+        visible: flag,
+        child: Padding(
+          padding: const EdgeInsets.all(15.0), // 外边距
+          child: new Center(child: new CircularProgressIndicator()),
+        ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: FutureBuilder(
-            future: wList,
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                List<WeightL> list = snapshot.data;
-                if (list == null) {
-                  return Container(
-                    child: Center(
-                      child: Text("无数据"),
-                    ),
-                  );
-                } else {
-                  return Container(
-                      child: ListView.separated(
-                          separatorBuilder: (BuildContext context, int index) =>
-                              Divider(height: 0.2, color: Colors.black26),
-                          itemCount: list.length,
-                          itemBuilder: (context, index) {
-                            var e = list[index];
-                            return WeightCard(
-                                e.id,
-                                KG,
-                                DateTime.parse(e.createdDate),
-                                e.weight,
-                                e.source,
-                                key: Key("${e.id}"));
-                          }));
-                }
-              } else if (snapshot.hasError) {
-                print(snapshot.error);
-                return Container();
-              } else {
-                return Container(
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-            }),
+        body: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: Builder(builder: (context) {
+            return Container(
+                child: ListView.separated(
+                    controller: _scrollController,
+                    separatorBuilder: (BuildContext context, int index) =>
+                        Divider(height: 0.2, color: Colors.black26),
+                    itemCount: data.length+1,
+                    itemBuilder: (context, index) {
+                      if (index == data.length) {
+                        return _loadMoreWidget();
+                      }
+                      var e = data[index];
+                      return WeightCard(e.id, KG, DateTime.parse(e.createdDate),
+                          e.weight, e.source,
+                          key: Key("${e.id}"));
+                    }));
+          }),
+        ),
         floatingActionButton: FloatingActionButton(
             child: Icon(Icons.add),
             onPressed: () async {
               bool flag = await WeightDiolog(context);
               if (flag != null && flag) {
-                setState(() {
-                  wList = WeightL().list();
-                });
+                _onRefresh();
               }
             }
             // Navigator.push(context, MaterialPageRoute(builder: (context) {

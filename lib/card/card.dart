@@ -11,7 +11,7 @@ class WeightCard extends StatelessWidget {
   final String source;
   final String uint;
   final int id;
-  const WeightCard(this.id,this.uint, this.dateTime, this.weight, this.source,
+  const WeightCard(this.id, this.uint, this.dateTime, this.weight, this.source,
       {Key key})
       : super(key: key);
 
@@ -26,8 +26,9 @@ class WeightCard extends StatelessWidget {
           child: Column(
             children: <Widget>[
               ListTile(
-                title: Text(weight.toString() + uint,
-                    style: TextStyle(color: Colors.orange),
+                title: Text(weight.toString() + " " + uint,
+                    style: TextStyle(
+                        color: Colors.orange, fontWeight: FontWeight.bold),
                     textDirection: TextDirection.ltr),
                 subtitle: Text("时间：" + dateSlug),
                 trailing: Text(
@@ -39,7 +40,7 @@ class WeightCard extends StatelessWidget {
           ),
         ),
         background: Container(
-          color: Colors.white10,        
+          color: Colors.white10,
         ),
         secondaryBackground: Container(
           padding: EdgeInsets.fromLTRB(7, 15, 7, 7),
